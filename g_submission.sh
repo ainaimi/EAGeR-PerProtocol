@@ -13,6 +13,12 @@ module load R
 # Natural Course
 Rscript --no-save --no-restore --verbose ./R/gF.R "compl1" 0.7142857 50 10000 0 $SLURM_ARRAY_TASK_ID  > gF_NaturalCourse.Rout 2>&1
 
+# ITT validation: treatment
+Rscript --no-save --no-restore --verbose ./R/gF.R "compl1" 0.7142857 50 10000 0 $SLURM_ARRAY_TASK_ID 1  > gF_NaturalCourse.Rout 2>&1
+
+# ITT validation: placebo
+Rscript --no-save --no-restore --verbose ./R/gF.R "compl1" 0.7142857 50 10000 0 $SLURM_ARRAY_TASK_ID 0  > gF_NaturalCourse.Rout 2>&1
+
 # Exposed
 Rscript --no-save --no-restore --verbose ./R/gF.R "compl1" 0.7142857 50 10000 0 $SLURM_ARRAY_TASK_ID 1 1 > gF_Exposed.Rout 2>&1
 
