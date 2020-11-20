@@ -29,4 +29,7 @@ they appear in the shell script file:
 - `rand`: used in the g computation algorithm to set all individuals to a given randomization stratum.
 - `expo`: used in the g computation algorithm to set all individuals to a given adherence level.
 - `cens`: used in the g computation algorithm to adjust for withdrawal.
-- `int`: used in the g computation algorithm to evaluate impact of initiating adherence at varying weeks post conception. 
+- `int`: used in the g computation algorithm to evaluate impact of initiating adherence at varying weeks post conception.
+
+
+This work was funded by an Extramural Research Grant from the Eunice Kennedy Shriver National Institute of Child Health and Human Development, grant number R01 HD093602, and by the Intramural Research Program of the Eunice Kennedy Shriver National Institute of Child Health and Human Development, National Institues of Health, Bethesda, Maryland (contract numbers HHSN267200603423, HHSN267200603424, and HHSN267200603426).
