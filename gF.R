@@ -4,35 +4,32 @@ args = commandArgs(trailingOnly=TRUE)
 start_time <- Sys.time()
 
 ## import arguments from command line
-compl <- as.character(args[1])
-thresh <- as.numeric(args[2])
-bootNum <- as.numeric(args[3])
-montecarlo <- as.numeric(args[4])
-strat <- as.numeric(args[5])
-array_num <- as.numeric(args[6])
-if(is.na(as.numeric(args[7]))){
+thresh <- as.numeric(args[1])
+bootNum <- as.numeric(args[2])
+montecarlo <- as.numeric(args[3])
+strat <- as.numeric(args[4])
+array_num <- as.numeric(args[5])
+if(is.na(as.numeric(args[6]))){
   rand<-NULL
 } else{
-  rand<-as.numeric(args[7])
+  rand<-as.numeric(args[6])
 }
-if(is.na(as.numeric(args[8]))){
+if(is.na(as.numeric(args[7]))){
   expo<-NULL
 } else{
-  expo<-as.numeric(args[8])
+  expo<-as.numeric(args[7])
 }
-if(is.na(as.numeric(args[9]))){
+if(is.na(as.numeric(args[8]))){
   cens<-NULL
 } else{
-  cens<-as.numeric(args[9])
+  cens<-as.numeric(args[8])
 }
-if(is.na(as.numeric(args[10]))){
+if(is.na(as.numeric(args[9]))){
   int<-NULL
 } else{
-  int<-as.numeric(args[10])
+  int<-as.numeric(args[9])
 }
 
-cat("EAGeR Compliance Variable \n")
-compl
 cat("Threshold Defining Compliance \n")
 thresh
 cat("Number of Bootstraps \n")
@@ -73,8 +70,63 @@ for (package in packages) {
 
 dr_here()
 
+cat("Number of available cores",'\n')
+cores<-detectCores(logical=T)-4
+cores
+
 a <- read_csv(here("data","2020_03_06-eager_weekly.csv"))
-a
+
+###
+V <- a %>%
+  mutate(alcohol=as.numeric(alcohol>0)) %>%
+  select(high_school,married,employed,white,alcohol,smoke,age,BMI)
+names(V) <- paste0("V",1:ncol(V))
+
+X <- a$studymed_b_imputed
+
+R <- a$treatment
+
+E <- a$eligibility
+
+j <- a$week
+
+id <- a$id
+
+Z <- as.numeric(a$conception>0)
+
+B <- as.numeric(a$bleed_d_imputed>0)
+
+N <- as.numeric(a$nausea_d_imputed>0)
+
+a$last_id <- as.numeric(!duplicated(a$id,fromLast = T))
+
+S <- as.numeric(a$outcome=="efuwp")*a$last_id
+
+C <- as.numeric(a$outcome=="withdrawal")*a$last_id
+
+D <- as.numeric(a$outcome=="pregnancy loss")*a$last_id
+
+Y <- as.numeric(a$outcome=="live birth")*a$last_id
+
+a2 <- cbind(V,X,R,E,j,id,Z,B,N,S,C,D,Y)
+
+a2 <- a2 %>% group_by(id) %>%
+  mutate(Xl=lag(X,n=1L,default=0),
+         Xl1=lag(Xl,n=1L,default=0),
+         Bl=lag(B,n=1L,default=0),
+         Bl1=lag(Bl,n=1L,default=0),
+         Nl=lag(N,n=1L,default=0),
+         Nl1=lag(Nl,n=1L,default=0),
+         Zl=lag(Z,n=1L,default=0),
+         Zl1=lag(Zl,n=1L,default=0))
+
+hist(a2$X)
+
+a2 <- a2 %>% mutate(X = as.numeric(X>thresh),
+                    Xl = as.numeric(Xl>thresh),
+                    Xl1 = as.numeric(Xl1>thresh))
+
+a <- a2
 
 cat("The Data", '\n')
 print(head(data.frame(a)))
@@ -94,7 +146,7 @@ g_boot1<-function(seed){
   if(seed==0){
     boot<-a
   } else{
-    for(zzz in 0:max(bb)){ # this counter goes from zero to select empirical data (no resample)
+    for(zzz in 1:max(bb)){ # this counter goes from zero to select empirical data (no resample)
       cc <- a[a$id %in% names(bb[bb %in% c(zzz:max(bb))]),]
       cc$bid<-paste0(cc$id,zzz)
       boot <- rbind(boot, cc)
@@ -113,23 +165,20 @@ g_boot1<-function(seed){
 
   table(boot$X)
 
-  boot$X  <- as.factor(1*as.numeric(boot$X==0&boot$R==0) +
-                         1*as.numeric(boot$X==0&boot$R==1) +
-                         2*as.numeric(boot$X==1&boot$R==0) +
-                         3*as.numeric(boot$X==1&boot$R==1))
-
-
-  head(data.frame(boot))
-
-  boot$Xl  <- as.factor(1*as.numeric(boot$Xl==0&boot$R==0) +
-                          1*as.numeric(boot$Xl==0&boot$R==1) +
-                          2*as.numeric(boot$Xl==1&boot$R==0) +
-                          3*as.numeric(boot$Xl==1&boot$R==1))
-
-  boot$Xl1 <- as.factor(1*as.numeric(boot$Xl1==0&boot$R==0) +
-                          1*as.numeric(boot$Xl1==0&boot$R==1) +
-                          2*as.numeric(boot$Xl1==1&boot$R==0) +
-                          3*as.numeric(boot$Xl1==1&boot$R==1))
+  # boot$X  <- as.factor(1*as.numeric(boot$X==0&boot$R==0) +
+  #                        1*as.numeric(boot$X==0&boot$R==1) +
+  #                        2*as.numeric(boot$X==1&boot$R==0) +
+  #                        3*as.numeric(boot$X==1&boot$R==1))
+  #
+  # boot$Xl  <- as.factor(1*as.numeric(boot$Xl==0&boot$R==0) +
+  #                         1*as.numeric(boot$Xl==0&boot$R==1) +
+  #                         2*as.numeric(boot$Xl==1&boot$R==0) +
+  #                         3*as.numeric(boot$Xl==1&boot$R==1))
+  #
+  # boot$Xl1 <- as.factor(1*as.numeric(boot$Xl1==0&boot$R==0) +
+  #                         1*as.numeric(boot$Xl1==0&boot$R==1) +
+  #                         2*as.numeric(boot$Xl1==1&boot$R==0) +
+  #                         3*as.numeric(boot$Xl1==1&boot$R==1))
 
   print(table(boot$X))
   print(table(boot$Xl))
@@ -147,6 +196,8 @@ g_boot1<-function(seed){
 
   cat('\n')
   cat("Fitting parametric models",'\n')
+  cat('\n')
+  cat("Fitting Y",'\n')
   mY_0<-function(k){
     fitY<-glm(Y~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
               +X+Xl+Xl1+B+Bl+N+Nl
@@ -161,6 +212,8 @@ g_boot1<-function(seed){
               data=boot,subset=Z==1&R==1,family=binomial)
     return(fitY)
   }
+  cat('\n')
+  cat("Fitting D",'\n')
   mD_0<-function(k){
     fitD<-glm(D~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
               +X+Xl+B+Bl+N+Nl
@@ -175,6 +228,8 @@ g_boot1<-function(seed){
               data=boot,subset=Z==1&R==1,family=binomial(link="logit"))
     return(fitD)
   }
+  cat('\n')
+  cat("Fitting C",'\n')
   mC_0<-function(k){
     fitC<-glm(C~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
               +X+Xl+B+Bl+N+Nl
@@ -189,6 +244,8 @@ g_boot1<-function(seed){
               data=boot,subset=R==1,family=binomial(link="logit"))
     return(fitC)
   }
+  cat('\n')
+  cat("Fitting S",'\n')
   mS_0<-function(k){
     fitS<-glm(S~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
               +X+Xl+B+Bl+N+Nl
@@ -203,6 +260,8 @@ g_boot1<-function(seed){
               data=boot,subset=Z==0&R==1,family=binomial(link="logit"))
     return(fitS)
   }
+  cat('\n')
+  cat("Fitting Z",'\n')
   mZ_0<-function(k){
     fitZ<-glm(Z~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
               +X+Xl+Xl1+B+Bl+N+Nl
@@ -217,22 +276,24 @@ g_boot1<-function(seed){
               family=binomial(link="logit"),data=boot,subset=Zl==0&R==1)
     return(fitZ)
   }
-
+  cat('\n')
+  cat("Fitting X",'\n')
   mX_0<-function(k){
-    fitX<-vglm(X~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
-               +B+Bl+N+Nl
-               +as.numeric(jj)+as.numeric(jjsq),
-               family=multinomial(refLevel = 1),data=boot)
+    fitX<-glm(X~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
+              +B+Bl+N+Nl
+              +as.numeric(jj)+as.numeric(jjsq),
+              family=binomial,data=subset(boot,R==0))
     return(fitX)
   }
-  mX_1<-function(k){ # same as mX_0
-    fitX<-vglm(X~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
+  mX_1<-function(k){
+    fitX<-glm(X~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
                +B+Bl+N+Nl
                +as.numeric(jj)+as.numeric(jjsq),
-               family=multinomial(refLevel = 1),data=boot)
+               family=binomial,data=subset(boot,R==1))
     return(fitX)
   }
-
+  cat('\n')
+  cat("Fitting B",'\n')
   mB_0<-function(k){
     fitB<-glm(B~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
               +Xl+Xl1+Bl+N+Nl
@@ -247,6 +308,8 @@ g_boot1<-function(seed){
               family=binomial,data=subset(boot,R==1))
     return(fitB)
   }
+  cat('\n')
+  cat("Fitting N",'\n')
   mN_0<-function(k){
     fitN<-glm(N~V1+V2+V3+V4+V5+V6+bs(V7,df=3)+bs(V8,df=3)
               +Xl+Xl1+Bl+Nl
@@ -305,7 +368,7 @@ g_boot1<-function(seed){
     print(d)
     lngth <- lngth
     Vp <- Rp <- Ep <- Bp <- Np <- Zp <- Xp <- Cp <- Sp <- Dp <- Yp <- Y2p <- mm <- cJ <- GA <- numeric()
-    Xp <- factor(levels=c("1","2","3"))
+    #Xp <- factor(levels=c("1","2","3"))
     mm[1] <- j <- 1
     id <- d$id
     Vp <- d[,paste("V",1:8,sep="")]
@@ -358,8 +421,8 @@ g_boot1<-function(seed){
       if (Yp[j - 1]==0&Dp[j - 1]==0&Cp[j - 1]==0&Sp[j - 1]==0) {
         cat("Conditions",'\n')
         if (j==2){
-          Bl1<-Nl1<-Zl1<-0
-          Xl1<-factor(3,levels=c("1","2","3"))
+          Bl1<-Nl1<-Zl1<-Xl1<-0
+          #Xl1<-factor(3,levels=c("1","2","3"))
         } else{
           Xl1 <- Xp[j - 2]
           Bl1 <- Bp[j - 2]
@@ -378,14 +441,7 @@ g_boot1<-function(seed){
 
         dXp <- data.table(Vp,E=Ep,Xl,Xl1,Zl,Zl1,B=Bp[j],Bl,Bl1,N=Np[j],Nl,Nl1,R=Rp,jj=as.numeric((j-j_mean)/j_sd),jjsq=(as.numeric((j-j_mean)/j_sd))^2)
         cat("Generating Compliance",'\n')
-        full_pred <- predict(fitR[[Rp+1]][[3]], newdata=dXp, type="response")
-        if(Rp==1){
-          tmp <- full_pred[,1]/sum(full_pred[,c(1,3)])
-          Xp[j] <- if_else(as.numeric(runif(1)>tmp)*3==3,3,1)
-        } else{
-          tmp <- full_pred[,1]/sum(full_pred[,c(1,2)])
-          Xp[j] <- if_else(as.numeric(runif(1)>tmp)*2==2,2,1)
-        }
+        Xp[j] <- pFunc(fitR[[Rp+1]][[3]], dXp)
 
         cat("Generating Conception",'\n')
         dZp <- data.table(Vp,E=Ep,X=Xp[j],Xl,Xl1,B=Bp[j],Bl,Bl1,N=Np[j],Nl,Nl1,R=Rp,jj=as.numeric((j-j_mean)/j_sd),jjsq=(as.numeric((j-j_mean)/j_sd))^2)
@@ -446,7 +502,8 @@ g_boot1<-function(seed){
     gdat$last<-as.numeric(!(gdat$Cp==0)|!(gdat$Sp==0)|!(gdat$Yp==0)|!(gdat$Dp==0)|gdat$mm==lngth)
     return(gdat)
   } # end pgf function
-  r<-mclapply(1:montecarlo, function(i) pgf(i,MC,60,randomization = rand,exposure = expo,censoring=cens,interaction=int,stratum=strat),mc.cores=cores)
+  #r<-mclapply(1:montecarlo, function(i) pgf(i,MC,60,randomization = rand,exposure = expo,censoring=cens,interaction=int,stratum=strat),mc.cores=cores)
+  r<-lapply(1:montecarlo, function(i) pgf(i,MC,60,randomization = rand,exposure = expo,censoring=cens,interaction=int,stratum=strat))
   results<-do.call(rbind,r)
   cat('\n')
   cat("End of run for SEED",seed,'\n')
